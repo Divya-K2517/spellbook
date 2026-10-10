@@ -1,19 +1,30 @@
-# Logic Spellbook – Application Workflow
+# Logic Spellbook – Application Workflow (v2)
 #
 # A model preserves selected facts so that a property becomes answerable.
 #
 # Engineering question:
 #
-#   Can a user create, edit, validate, run, explain, save, and reopen
-#   a spell page without running an invalid circuit or silently
-#   discarding unsaved edits?
+#   Can a user create, edit, validate, run, explain, save, reopen,
+#   and delete spell pages without running an invalid circuit,
+#   silently discarding unsaved edits, or silently deleting a saved page?
 #
 # This model represents the entire application's user workflow,
 # not the behavior of one particular spell.
 #
+# Changes from v1:
+#
+#   - The library now holds MULTIPLE saved pages, abstracted as
+#     library_has_pages (at least one) and library_has_many (at least two).
+#   - saved_copy is replaced by page_saved: whether the page currently
+#     open in the editor has a stored snapshot.
+#   - Deletion is modeled: delete requires an explicit confirmation state.
+#   - Library actions added: duplicate-page, rename-page.
+#   - There is no autosave. Unsaved work is only resolved by an explicit
+#     save or an explicit discard.
+#
 # A page contains:
 #
-#   Left page: miniature scene, inputs, and output objects.
+#   Left page: miniature scene (placeholder art for now), inputs, outputs.
 #   Right page: rune palette, placed runes, and glowing connections.
 #
 # States represent interface modes. Variables preserve the facts
@@ -21,16 +32,8 @@
 #
 # Validation and simulation are represented through explicit
 # result events. This model does not compute graph validity or
-# Boolean outputs itself.
-#
-# Important abstraction:
-#
-#   saved_copy means a saved snapshot of the current page exists.
-#   Loading restores that snapshot. Its full contents are not
-#   represented in this workflow model.
-#
-# Unsaved work cannot be abandoned through ordinary navigation.
-# An explicit discard action is required.
+# Boolean outputs itself. Trace playback (step-by-step gate animation)
+# is internal to the tracing state and is not modeled per step.
 #
 # Machine rationale lives on the application entity, following
 # the supplied template's annotation workaround.
@@ -41,11 +44,13 @@ system:
   id: logic-spellbook-application
   name: Logic Spellbook
   description: >
-    A software application presented as an illustrated spellbook.
-    Users manage spell pages, place Boolean-logic runes, connect
-    them with glowing ink, validate their circuits, interact with
-    miniature scenes, inspect evaluation traces, and save or
-    reopen their work.
+    A browser application presented as an illustrated spellbook,
+    hosted entirely on GitHub Pages. Users manage a library of spell
+    pages, place Boolean-logic runes, connect them with glowing ink,
+    validate their circuits, interact with miniature scenes, inspect
+    step-by-step evaluation traces, and save, reopen, duplicate,
+    rename, or delete their pages. Persistence is browser-only
+    (IndexedDB) with file export and import.
 
 entities:
 
@@ -59,8 +64,9 @@ entities:
           The application-workflow machine represents the major
           interface modes and the conditions governing movement
           between them. It preserves unsaved-change status,
-          validation status, saved-snapshot availability, and
-          runtime-result availability. It deliberately abstracts
+          validation status, whether the open page has a stored
+          snapshot, whether the library holds one or several pages,
+          and runtime-result availability. It deliberately abstracts
           away exact page contents, circuit topology, Boolean
           calculations, and persistent-storage implementation.
 
@@ -72,22 +78,28 @@ entities:
           before entering preview. This model verifies that the
           interface respects the validator's result; it does not
           verify that the validator classifies circuits correctly.
+          Which circuit shapes are valid (for example, whether
+          feedback cycles are allowed through memory runes) is a
+          validator concern and may grow without changing this model.
 
       - id: snapshot-boundary
         kind: rationale
         text: >
-          A saved snapshot belongs to the current page.
-          Loading restores its contents and requires revalidation.
-          Page identity and multiple stored snapshots are not
-          represented by this first workflow model.
+          Each saved page has one stored snapshot; there is no
+          autosave and no draft history. Loading restores the snapshot
+          and requires revalidation. Page identity is abstracted:
+          the model tracks only whether the library has no pages,
+          at least one, or at least two, and whether the open page
+          has been saved. Exact counts are omitted, so effects that
+          change the count are modeled conservatively.
 
-    provenance:
-      created_by: logic-spellbook-design
-      prompt: >
-        Model the whole Logic Spellbook interface and application
-        workflow rather than one fixed spell.
-      rationale: >
-        Adapted from the supplied MAGE Simple Worker Queue template.
+      - id: deletion-boundary
+        kind: rationale
+        text: >
+          Deleting a saved page is destructive and cannot be undone.
+          It is reachable only from the library through an explicit
+          confirmation state. Deletion applies to library pages, never
+          to the page currently open in the editor.
 
   library:
     type: interface-region
@@ -96,8 +108,9 @@ entities:
       - id: library-purpose
         kind: rationale
         text: >
-          The entry screen for creating a page or reopening the
-          current page's saved snapshot.
+          The entry screen listing saved pages. Supports creating a
+          page, opening, duplicating, renaming, and deleting a saved
+          page. Thumbnails are a later enhancement.
 
   spell-page:
     type: document
@@ -117,9 +130,9 @@ entities:
       - id: scene-purpose
         kind: rationale
         text: >
-          Displays interactive inputs and animated output objects.
-          In preview, inputs can change without changing circuit
-          topology.
+          Displays interactive inputs and animated output objects,
+          using placeholder visuals until art exists. In preview,
+          inputs can change without changing circuit topology.
 
   rune-editor:
     type: interface-region
@@ -129,7 +142,8 @@ entities:
         kind: rationale
         text: >
           Supports placing, moving, selecting, and deleting runes,
-          and creating or removing glowing connections.
+          and creating or removing glowing connections. Rune and
+          ink rendering is SVG with GSAP animation.
 
   rune-palette:
     type: interface-region
@@ -139,7 +153,9 @@ entities:
         kind: rationale
         text: >
           Offers input runes, Either/OR, Both/AND, Opposite/NOT,
-          and output runes.
+          and output runes. AND and OR accept any number of inputs;
+          one output may feed multiple destinations. More complex
+          runes (such as memory runes) are planned later.
 
   validator:
     type: application-component
@@ -150,8 +166,9 @@ entities:
         text: >
           Reports whether the current circuit can be evaluated.
           Intended checks include required connections, compatible
-          endpoints, and absence of unsupported feedback cycles.
-          The workflow model receives its result as an event.
+          endpoints, and unsupported feedback cycles. The set of
+          allowed cycle forms is configurable. The workflow model
+          receives its result as an event.
 
   simulator:
     type: application-component
@@ -160,9 +177,11 @@ entities:
       - id: simulator-purpose
         kind: rationale
         text: >
-          Evaluates a validated circuit and supplies settled values
-          to the scene and trace inspector. Exact evaluation is
-          outside this workflow model.
+          Evaluates a validated circuit by propagating values in
+          rounds until nothing changes, so future memory runes and
+          feedback do not require a redesign. Each round is one unit
+          of the step-by-step trace. Exact evaluation is outside
+          this workflow model.
 
   trace-inspector:
     type: interface-region
@@ -171,8 +190,9 @@ entities:
       - id: trace-purpose
         kind: rationale
         text: >
-          Explains an available evaluation result step by step,
-          highlighting the corresponding runes and connections.
+          Explains an available evaluation result by animating one
+          propagation round at a time, highlighting the runes and
+          connections that changed in that round.
 
   page-storage:
     type: application-component
@@ -181,7 +201,8 @@ entities:
       - id: storage-purpose
         kind: rationale
         text: >
-          Saves and loads a snapshot of the current page.
+          Saves, loads, duplicates, renames, and deletes page
+          snapshots in IndexedDB, and exports or imports page files.
           Saving may succeed or fail; dirty status is cleared only
           after success.
 
@@ -191,19 +212,21 @@ machines:
     label: Application Workflow
     entity: application
     description: >
-      Models the user-facing lifecycle of a spell page and the
-      guards preventing invalid execution and accidental loss
-      of unsaved edits.
+      Models the user-facing lifecycle of spell pages and the
+      guards preventing invalid execution, accidental loss of
+      unsaved edits, and accidental deletion of saved pages.
 
     purpose:
       question: >
-        Can a spell page move through creation, editing,
-        validation, preview, explanation, saving, and reopening
-        while respecting validation and unsaved-work boundaries?
+        Can spell pages move through creation, editing, validation,
+        preview, explanation, saving, reopening, and deletion while
+        respecting validation, unsaved-work, and deletion boundaries?
 
       represents:
         - page creation
         - page reopening
+        - page duplication and renaming
+        - confirmed page deletion
         - editor interactions
         - connection editing
         - unsaved-change status
@@ -222,9 +245,11 @@ machines:
         - validator implementation
         - animation frames and timing
         - trace contents and individual trace steps
-        - storage format and filesystem operations
-        - multiple simultaneous pages
-        - arbitrary page-library contents
+        - storage format and IndexedDB operations
+        - export and import of page files
+        - exact number of saved pages
+        - multiple simultaneous open pages
+        - autosave and draft history
         - undo and redo history
         - puzzle scoring and progression
         - application crashes and recovery
@@ -236,8 +261,14 @@ machines:
       library:
         label: Page Library
         description: >
-          Shows the new-page action and access to an existing
-          saved snapshot.
+          Shows the new-page action and the list of saved pages,
+          with open, duplicate, rename, and delete actions.
+
+      confirming-delete:
+        label: Confirm Page Deletion
+        description: >
+          Asks the user to confirm permanent deletion of a selected
+          saved page, or cancel.
 
       editing:
         label: Editing Page
@@ -265,8 +296,9 @@ machines:
       tracing:
         label: Trace Inspector
         description: >
-          Displays an explanation of an available evaluation
-          result. Input changes are paused during inspection.
+          Plays and displays a step-by-step explanation of an
+          available evaluation result. Input changes are paused
+          during inspection.
 
       saving:
         label: Saving Page
@@ -285,7 +317,7 @@ machines:
         range: [0, 1]
         initial: 0
         description: >
-          Whether the page has unsaved changes.
+          Whether the open page has unsaved changes.
           Cleared by successful saving or explicit discard.
 
       validated:
@@ -296,13 +328,27 @@ machines:
           Whether the current circuit has passed validation.
           Cleared whenever page contents are edited.
 
-      saved_copy:
+      page_saved:
         type: integer
         range: [0, 1]
         initial: 0
         description: >
-          Whether a saved snapshot of the current page exists.
+          Whether the page open in the editor has a stored snapshot.
           This is not necessarily the latest edited version.
+
+      library_has_pages:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: Whether the library holds at least one saved page.
+
+      library_has_many:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether the library holds at least two saved pages.
+          Implies library_has_pages.
 
       runtime_ready:
         type: integer
@@ -342,7 +388,7 @@ machines:
         effects:
           dirty: 1
           validated: 0
-          saved_copy: 0
+          page_saved: 0
           runtime_ready: 0
           preview_active: 0
           trace_active: 0
@@ -350,12 +396,13 @@ machines:
 
       - from: library
         to: editing
-        label: reopen-saved-page
+        label: open-saved-page
         requires:
-          saved_copy: {gt: 0}
+          library_has_pages: {gt: 0}
         effects:
           dirty: 0
           validated: 0
+          page_saved: 1
           runtime_ready: 0
           preview_active: 0
           trace_active: 0
@@ -383,6 +430,61 @@ machines:
           validated: 0
           runtime_ready: 0
           library_visible: 1
+
+      # ---------------------------------------------------------
+      # Library page management
+      # ---------------------------------------------------------
+
+      # Duplicating always yields at least two saved pages.
+      - from: library
+        to: library
+        label: duplicate-page
+        requires:
+          library_has_pages: {gt: 0}
+        effects:
+          library_has_many: 1
+
+      - from: library
+        to: library
+        label: rename-page
+        requires:
+          library_has_pages: {gt: 0}
+
+      # Deletion is only reachable through the confirmation state.
+      - from: library
+        to: confirming-delete
+        label: request-delete-page
+        requires:
+          library_has_pages: {gt: 0}
+
+      - from: confirming-delete
+        to: library
+        label: cancel-delete
+
+      # Deleting the only saved page empties the library.
+      - from: confirming-delete
+        to: library
+        label: confirm-delete-only-page
+        requires:
+          library_has_many: {lt: 1}
+        effects:
+          library_has_pages: 0
+
+      # With several pages, the exact remaining count is abstracted,
+      # so both outcomes (still many, or exactly one) are allowed.
+      - from: confirming-delete
+        to: library
+        label: confirm-delete-leaves-many
+        requires:
+          library_has_many: {gt: 0}
+
+      - from: confirming-delete
+        to: library
+        label: confirm-delete-leaves-one
+        requires:
+          library_has_many: {gt: 0}
+        effects:
+          library_has_many: 0
 
       # ---------------------------------------------------------
       # Non-mutating editor interaction
@@ -543,11 +645,37 @@ machines:
         to: saving
         label: save-page
 
+      # Re-saving a page that already has a snapshot.
       - from: saving
         to: editing
-        label: save-succeeded
+        label: save-succeeded-existing-page
+        requires:
+          page_saved: {gt: 0}
         effects:
-          saved_copy: 1
+          dirty: 0
+
+      # First save of a new page into an empty library.
+      - from: saving
+        to: editing
+        label: save-succeeded-first-page
+        requires:
+          page_saved: {lt: 1}
+          library_has_pages: {lt: 1}
+        effects:
+          page_saved: 1
+          library_has_pages: 1
+          dirty: 0
+
+      # First save of a new page into a library that already has pages.
+      - from: saving
+        to: editing
+        label: save-succeeded-additional-page
+        requires:
+          page_saved: {lt: 1}
+          library_has_pages: {gt: 0}
+        effects:
+          page_saved: 1
+          library_has_many: 1
           dirty: 0
 
       - from: saving
@@ -596,7 +724,7 @@ queries:
     behavior:
       form: reach
       target:
-        application-workflow.saved_copy: 1
+        application-workflow.page_saved: 1
 
   saved-page-can-remain-in-library:
     name: A saved page can be available from the library
@@ -605,8 +733,28 @@ queries:
     behavior:
       form: reach
       target:
-        application-workflow.saved_copy: 1
+        application-workflow.library_has_pages: 1
         application-workflow.library_visible: 1
+
+  multiple-pages-can-exist:
+    name: The library can hold several saved pages
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.library_has_many: 1
+        application-workflow.library_visible: 1
+
+  library-can-be-emptied:
+    name: A library with saved pages can become empty again
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.library_has_pages: 0
+        application-workflow.page_saved: 1
 
   unvalidated-preview-is-reachable:
     name: Preview can run without successful validation
@@ -661,3 +809,10 @@ requirements:
       or explicitly discard those edits.
     expressed_as: dirty-library-is-reachable
     satisfied_when: refuted
+
+  # Note: "deletion requires confirmation" is enforced structurally.
+  # The only transitions that clear library_has_pages or leave the
+  # confirming-delete state originate from confirming-delete, and the
+  # only way into that state is request-delete-page. A reachability
+  # query cannot express "never without passing through a state", so
+  # this property is documented here rather than as a requirement.
