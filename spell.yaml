@@ -1,0 +1,663 @@
+# Logic Spellbook – Application Workflow
+#
+# A model preserves selected facts so that a property becomes answerable.
+#
+# Engineering question:
+#
+#   Can a user create, edit, validate, run, explain, save, and reopen
+#   a spell page without running an invalid circuit or silently
+#   discarding unsaved edits?
+#
+# This model represents the entire application's user workflow,
+# not the behavior of one particular spell.
+#
+# A page contains:
+#
+#   Left page: miniature scene, inputs, and output objects.
+#   Right page: rune palette, placed runes, and glowing connections.
+#
+# States represent interface modes. Variables preserve the facts
+# needed to decide which actions are allowed.
+#
+# Validation and simulation are represented through explicit
+# result events. This model does not compute graph validity or
+# Boolean outputs itself.
+#
+# Important abstraction:
+#
+#   saved_copy means a saved snapshot of the current page exists.
+#   Loading restores that snapshot. Its full contents are not
+#   represented in this workflow model.
+#
+# Unsaved work cannot be abandoned through ordinary navigation.
+# An explicit discard action is required.
+#
+# Machine rationale lives on the application entity, following
+# the supplied template's annotation workaround.
+
+mage: 1
+
+system:
+  id: logic-spellbook-application
+  name: Logic Spellbook
+  description: >
+    A software application presented as an illustrated spellbook.
+    Users manage spell pages, place Boolean-logic runes, connect
+    them with glowing ink, validate their circuits, interact with
+    miniature scenes, inspect evaluation traces, and save or
+    reopen their work.
+
+entities:
+
+  application:
+    type: application
+    label: Logic Spellbook
+    notes:
+      - id: application-model-rationale
+        kind: rationale
+        text: >
+          The application-workflow machine represents the major
+          interface modes and the conditions governing movement
+          between them. It preserves unsaved-change status,
+          validation status, saved-snapshot availability, and
+          runtime-result availability. It deliberately abstracts
+          away exact page contents, circuit topology, Boolean
+          calculations, and persistent-storage implementation.
+
+      - id: validation-boundary
+        kind: rationale
+        text: >
+          Validation success and failure are modeled as explicit
+          outcomes from a separate validator. Success is required
+          before entering preview. This model verifies that the
+          interface respects the validator's result; it does not
+          verify that the validator classifies circuits correctly.
+
+      - id: snapshot-boundary
+        kind: rationale
+        text: >
+          A saved snapshot belongs to the current page.
+          Loading restores its contents and requires revalidation.
+          Page identity and multiple stored snapshots are not
+          represented by this first workflow model.
+
+    provenance:
+      created_by: logic-spellbook-design
+      prompt: >
+        Model the whole Logic Spellbook interface and application
+        workflow rather than one fixed spell.
+      rationale: >
+        Adapted from the supplied MAGE Simple Worker Queue template.
+
+  library:
+    type: interface-region
+    label: Spell Page Library
+    notes:
+      - id: library-purpose
+        kind: rationale
+        text: >
+          The entry screen for creating a page or reopening the
+          current page's saved snapshot.
+
+  spell-page:
+    type: document
+    label: Spell Page
+    notes:
+      - id: page-purpose
+        kind: rationale
+        text: >
+          Combines a miniature scene with an editable logic circuit.
+          Changes to its contents make the page dirty and invalidate
+          previous validation.
+
+  scene:
+    type: interface-region
+    label: Miniature Scene
+    notes:
+      - id: scene-purpose
+        kind: rationale
+        text: >
+          Displays interactive inputs and animated output objects.
+          In preview, inputs can change without changing circuit
+          topology.
+
+  rune-editor:
+    type: interface-region
+    label: Rune Editor
+    notes:
+      - id: editor-purpose
+        kind: rationale
+        text: >
+          Supports placing, moving, selecting, and deleting runes,
+          and creating or removing glowing connections.
+
+  rune-palette:
+    type: interface-region
+    label: Rune Palette
+    notes:
+      - id: palette-purpose
+        kind: rationale
+        text: >
+          Offers input runes, Either/OR, Both/AND, Opposite/NOT,
+          and output runes.
+
+  validator:
+    type: application-component
+    label: Circuit Validator
+    notes:
+      - id: validator-purpose
+        kind: rationale
+        text: >
+          Reports whether the current circuit can be evaluated.
+          Intended checks include required connections, compatible
+          endpoints, and absence of unsupported feedback cycles.
+          The workflow model receives its result as an event.
+
+  simulator:
+    type: application-component
+    label: Spell Simulator
+    notes:
+      - id: simulator-purpose
+        kind: rationale
+        text: >
+          Evaluates a validated circuit and supplies settled values
+          to the scene and trace inspector. Exact evaluation is
+          outside this workflow model.
+
+  trace-inspector:
+    type: interface-region
+    label: Trace Inspector
+    notes:
+      - id: trace-purpose
+        kind: rationale
+        text: >
+          Explains an available evaluation result step by step,
+          highlighting the corresponding runes and connections.
+
+  page-storage:
+    type: application-component
+    label: Page Storage
+    notes:
+      - id: storage-purpose
+        kind: rationale
+        text: >
+          Saves and loads a snapshot of the current page.
+          Saving may succeed or fail; dirty status is cleared only
+          after success.
+
+machines:
+
+  application-workflow:
+    label: Application Workflow
+    entity: application
+    description: >
+      Models the user-facing lifecycle of a spell page and the
+      guards preventing invalid execution and accidental loss
+      of unsaved edits.
+
+    purpose:
+      question: >
+        Can a spell page move through creation, editing,
+        validation, preview, explanation, saving, and reopening
+        while respecting validation and unsaved-work boundaries?
+
+      represents:
+        - page creation
+        - page reopening
+        - editor interactions
+        - connection editing
+        - unsaved-change status
+        - validation success and failure
+        - simulation-result availability
+        - scene input interaction
+        - trace inspection
+        - saving success and failure
+        - explicit discard of unsaved work
+        - return to the page library
+
+      omits:
+        - exact circuit graph and connection identities
+        - exact rune positions
+        - Boolean gate evaluation
+        - validator implementation
+        - animation frames and timing
+        - trace contents and individual trace steps
+        - storage format and filesystem operations
+        - multiple simultaneous pages
+        - arbitrary page-library contents
+        - undo and redo history
+        - puzzle scoring and progression
+        - application crashes and recovery
+
+    initial: library
+
+    states:
+
+      library:
+        label: Page Library
+        description: >
+          Shows the new-page action and access to an existing
+          saved snapshot.
+
+      editing:
+        label: Editing Page
+        description: >
+          Shows the scene, rune palette, editable circuit,
+          inspector, and save/validate controls.
+
+      validating:
+        label: Validating Spell
+        description: >
+          Circuit editing is paused while validation is pending.
+
+      invalid:
+        label: Validation Errors
+        description: >
+          Shows errors and offers a return to editing.
+          Preview is unavailable.
+
+      preview:
+        label: Interactive Preview
+        description: >
+          Runs a validated spell. Inputs are interactive.
+          Circuit topology is not editable in this mode.
+
+      tracing:
+        label: Trace Inspector
+        description: >
+          Displays an explanation of an available evaluation
+          result. Input changes are paused during inspection.
+
+      saving:
+        label: Saving Page
+        description: >
+          Editing is paused while persistence is pending.
+
+      save-error:
+        label: Save Failed
+        description: >
+          Reports persistence failure. Unsaved changes remain.
+
+    variables:
+
+      dirty:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether the page has unsaved changes.
+          Cleared by successful saving or explicit discard.
+
+      validated:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether the current circuit has passed validation.
+          Cleared whenever page contents are edited.
+
+      saved_copy:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether a saved snapshot of the current page exists.
+          This is not necessarily the latest edited version.
+
+      runtime_ready:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether an evaluation result is available to display
+          or explain.
+
+      preview_active:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: Whether interactive preview is active.
+
+      trace_active:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: Whether trace inspection is active.
+
+      library_visible:
+        type: integer
+        range: [0, 1]
+        initial: 1
+        description: Whether the page library is visible.
+
+    transitions:
+
+      # ---------------------------------------------------------
+      # Page lifecycle
+      # ---------------------------------------------------------
+
+      - from: library
+        to: editing
+        label: create-new-page
+        effects:
+          dirty: 1
+          validated: 0
+          saved_copy: 0
+          runtime_ready: 0
+          preview_active: 0
+          trace_active: 0
+          library_visible: 0
+
+      - from: library
+        to: editing
+        label: reopen-saved-page
+        requires:
+          saved_copy: {gt: 0}
+        effects:
+          dirty: 0
+          validated: 0
+          runtime_ready: 0
+          preview_active: 0
+          trace_active: 0
+          library_visible: 0
+
+      # Ordinary navigation must not abandon unsaved edits.
+      - from: editing
+        to: library
+        label: return-to-library
+        requires:
+          dirty: {lt: 1}
+        effects:
+          validated: 0
+          runtime_ready: 0
+          library_visible: 1
+
+      # Separate, explicitly confirmed discard action.
+      - from: editing
+        to: library
+        label: confirm-discard-and-return
+        requires:
+          dirty: {gt: 0}
+        effects:
+          dirty: 0
+          validated: 0
+          runtime_ready: 0
+          library_visible: 1
+
+      # ---------------------------------------------------------
+      # Non-mutating editor interaction
+      # ---------------------------------------------------------
+
+      - from: editing
+        to: editing
+        label: select-rune-or-connection
+
+      - from: editing
+        to: editing
+        label: inspect-selected-item
+
+      # ---------------------------------------------------------
+      # Page-content changes
+      #
+      # Every content edit invalidates the previous validation.
+      # This deliberately treats even layout edits conservatively.
+      # ---------------------------------------------------------
+
+      - from: editing
+        to: editing
+        label: place-rune
+        effects:
+          dirty: 1
+          validated: 0
+          runtime_ready: 0
+
+      - from: editing
+        to: editing
+        label: move-rune
+        effects:
+          dirty: 1
+          validated: 0
+          runtime_ready: 0
+
+      - from: editing
+        to: editing
+        label: delete-rune
+        effects:
+          dirty: 1
+          validated: 0
+          runtime_ready: 0
+
+      - from: editing
+        to: editing
+        label: connect-ink-path
+        effects:
+          dirty: 1
+          validated: 0
+          runtime_ready: 0
+
+      - from: editing
+        to: editing
+        label: delete-ink-path
+        effects:
+          dirty: 1
+          validated: 0
+          runtime_ready: 0
+
+      - from: editing
+        to: editing
+        label: edit-scene-or-page-settings
+        effects:
+          dirty: 1
+          validated: 0
+          runtime_ready: 0
+
+      # ---------------------------------------------------------
+      # Validation
+      # ---------------------------------------------------------
+
+      - from: editing
+        to: validating
+        label: request-validation
+        effects:
+          validated: 0
+          runtime_ready: 0
+
+      - from: validating
+        to: editing
+        label: validation-succeeded
+        effects:
+          validated: 1
+
+      - from: validating
+        to: invalid
+        label: validation-failed
+        effects:
+          validated: 0
+          runtime_ready: 0
+
+      - from: invalid
+        to: editing
+        label: return-to-fix-errors
+
+      # ---------------------------------------------------------
+      # Preview and evaluation
+      # ---------------------------------------------------------
+
+      - from: editing
+        to: preview
+        label: run-spell
+        requires:
+          validated: {gt: 0}
+        effects:
+          preview_active: 1
+          runtime_ready: 0
+
+      - from: preview
+        to: preview
+        label: evaluation-result-ready
+        effects:
+          runtime_ready: 1
+
+      - from: preview
+        to: preview
+        label: toggle-scene-input
+        effects:
+          runtime_ready: 0
+
+      - from: preview
+        to: editing
+        label: stop-preview
+        effects:
+          preview_active: 0
+          runtime_ready: 0
+
+      # ---------------------------------------------------------
+      # Explain the current evaluation
+      # ---------------------------------------------------------
+
+      - from: preview
+        to: tracing
+        label: explain-spell
+        requires:
+          runtime_ready: {gt: 0}
+        effects:
+          preview_active: 0
+          trace_active: 1
+
+      - from: tracing
+        to: tracing
+        label: inspect-explanation
+
+      - from: tracing
+        to: preview
+        label: close-explanation
+        effects:
+          trace_active: 0
+          preview_active: 1
+
+      # ---------------------------------------------------------
+      # Save workflow
+      # ---------------------------------------------------------
+
+      - from: editing
+        to: saving
+        label: save-page
+
+      - from: saving
+        to: editing
+        label: save-succeeded
+        effects:
+          saved_copy: 1
+          dirty: 0
+
+      - from: saving
+        to: save-error
+        label: save-failed
+
+      - from: save-error
+        to: saving
+        label: retry-save
+
+      - from: save-error
+        to: editing
+        label: return-to-editor-after-save-error
+
+# -------------------------------------------------------------------
+# Behavioral questions
+#
+# These queries address interface reachability and safety boundaries.
+# They do not establish circuit-evaluator or persistence correctness.
+# -------------------------------------------------------------------
+
+queries:
+
+  preview-is-reachable:
+    name: A user can reach interactive preview
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.preview_active: 1
+
+  trace-is-reachable:
+    name: A user can inspect an evaluation trace
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.trace_active: 1
+
+  page-can-be-saved:
+    name: A saved page snapshot can exist
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.saved_copy: 1
+
+  saved-page-can-remain-in-library:
+    name: A saved page can be available from the library
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.saved_copy: 1
+        application-workflow.library_visible: 1
+
+  unvalidated-preview-is-reachable:
+    name: Preview can run without successful validation
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.preview_active: 1
+        application-workflow.validated: 0
+
+  trace-without-result-is-reachable:
+    name: Trace inspection can open without an evaluation result
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.trace_active: 1
+        application-workflow.runtime_ready: 0
+
+  dirty-library-is-reachable:
+    name: Unsaved work can remain while the library is shown
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.library_visible: 1
+        application-workflow.dirty: 1
+
+requirements:
+
+  validation-before-preview:
+    statement: >
+      Interactive preview must not be active unless the current
+      circuit has passed validation.
+    expressed_as: unvalidated-preview-is-reachable
+    satisfied_when: refuted
+
+  result-before-explanation:
+    statement: >
+      Trace inspection must not be active without an available
+      evaluation result.
+    expressed_as: trace-without-result-is-reachable
+    satisfied_when: refuted
+
+  explicit-unsaved-work-resolution:
+    statement: >
+      The application must not return to the library with
+      unresolved unsaved edits. The user must save successfully
+      or explicitly discard those edits.
+    expressed_as: dirty-library-is-reachable
+    satisfied_when: refuted
