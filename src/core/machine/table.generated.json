@@ -1,0 +1,511 @@
+{
+  "generatedFrom": "spell.yaml",
+  "machine": "application-workflow",
+  "initial": "library",
+  "states": [
+    "library",
+    "confirming-delete",
+    "editing",
+    "validating",
+    "invalid",
+    "preview",
+    "tracing",
+    "saving",
+    "save-error"
+  ],
+  "variables": {
+    "dirty": {
+      "type": "integer",
+      "range": [
+        0,
+        1
+      ],
+      "initial": 0,
+      "description": "Whether the open page has unsaved changes. Cleared by successful saving or explicit discard.\n"
+    },
+    "validated": {
+      "type": "integer",
+      "range": [
+        0,
+        1
+      ],
+      "initial": 0,
+      "description": "Whether the current circuit has passed validation. Cleared whenever page contents are edited.\n"
+    },
+    "page_saved": {
+      "type": "integer",
+      "range": [
+        0,
+        1
+      ],
+      "initial": 0,
+      "description": "Whether the page open in the editor has a stored snapshot. This is not necessarily the latest edited version.\n"
+    },
+    "library_has_pages": {
+      "type": "integer",
+      "range": [
+        0,
+        1
+      ],
+      "initial": 0,
+      "description": "Whether the library holds at least one saved page."
+    },
+    "library_has_many": {
+      "type": "integer",
+      "range": [
+        0,
+        1
+      ],
+      "initial": 0,
+      "description": "Whether the library holds at least two saved pages. Implies library_has_pages.\n"
+    },
+    "runtime_ready": {
+      "type": "integer",
+      "range": [
+        0,
+        1
+      ],
+      "initial": 0,
+      "description": "Whether an evaluation result is available to display or explain.\n"
+    },
+    "preview_active": {
+      "type": "integer",
+      "range": [
+        0,
+        1
+      ],
+      "initial": 0,
+      "description": "Whether interactive preview is active."
+    },
+    "trace_active": {
+      "type": "integer",
+      "range": [
+        0,
+        1
+      ],
+      "initial": 0,
+      "description": "Whether trace inspection is active."
+    },
+    "library_visible": {
+      "type": "integer",
+      "range": [
+        0,
+        1
+      ],
+      "initial": 1,
+      "description": "Whether the page library is visible."
+    }
+  },
+  "transitions": [
+    {
+      "from": "library",
+      "to": "editing",
+      "label": "create-new-page",
+      "requires": {},
+      "effects": {
+        "dirty": 1,
+        "validated": 0,
+        "page_saved": 0,
+        "runtime_ready": 0,
+        "preview_active": 0,
+        "trace_active": 0,
+        "library_visible": 0
+      }
+    },
+    {
+      "from": "library",
+      "to": "editing",
+      "label": "open-saved-page",
+      "requires": {
+        "library_has_pages": {
+          "gt": 0
+        }
+      },
+      "effects": {
+        "dirty": 0,
+        "validated": 0,
+        "page_saved": 1,
+        "runtime_ready": 0,
+        "preview_active": 0,
+        "trace_active": 0,
+        "library_visible": 0
+      }
+    },
+    {
+      "from": "editing",
+      "to": "library",
+      "label": "return-to-library",
+      "requires": {
+        "dirty": {
+          "lt": 1
+        }
+      },
+      "effects": {
+        "validated": 0,
+        "runtime_ready": 0,
+        "library_visible": 1
+      }
+    },
+    {
+      "from": "editing",
+      "to": "library",
+      "label": "confirm-discard-and-return",
+      "requires": {
+        "dirty": {
+          "gt": 0
+        }
+      },
+      "effects": {
+        "dirty": 0,
+        "validated": 0,
+        "runtime_ready": 0,
+        "library_visible": 1
+      }
+    },
+    {
+      "from": "library",
+      "to": "library",
+      "label": "duplicate-page",
+      "requires": {
+        "library_has_pages": {
+          "gt": 0
+        }
+      },
+      "effects": {
+        "library_has_many": 1
+      }
+    },
+    {
+      "from": "library",
+      "to": "library",
+      "label": "rename-page",
+      "requires": {
+        "library_has_pages": {
+          "gt": 0
+        }
+      },
+      "effects": {}
+    },
+    {
+      "from": "library",
+      "to": "confirming-delete",
+      "label": "request-delete-page",
+      "requires": {
+        "library_has_pages": {
+          "gt": 0
+        }
+      },
+      "effects": {}
+    },
+    {
+      "from": "confirming-delete",
+      "to": "library",
+      "label": "cancel-delete",
+      "requires": {},
+      "effects": {}
+    },
+    {
+      "from": "confirming-delete",
+      "to": "library",
+      "label": "confirm-delete-only-page",
+      "requires": {
+        "library_has_many": {
+          "lt": 1
+        }
+      },
+      "effects": {
+        "library_has_pages": 0
+      }
+    },
+    {
+      "from": "confirming-delete",
+      "to": "library",
+      "label": "confirm-delete-leaves-many",
+      "requires": {
+        "library_has_many": {
+          "gt": 0
+        }
+      },
+      "effects": {}
+    },
+    {
+      "from": "confirming-delete",
+      "to": "library",
+      "label": "confirm-delete-leaves-one",
+      "requires": {
+        "library_has_many": {
+          "gt": 0
+        }
+      },
+      "effects": {
+        "library_has_many": 0
+      }
+    },
+    {
+      "from": "editing",
+      "to": "editing",
+      "label": "select-rune-or-connection",
+      "requires": {},
+      "effects": {}
+    },
+    {
+      "from": "editing",
+      "to": "editing",
+      "label": "inspect-selected-item",
+      "requires": {},
+      "effects": {}
+    },
+    {
+      "from": "editing",
+      "to": "editing",
+      "label": "place-rune",
+      "requires": {},
+      "effects": {
+        "dirty": 1,
+        "validated": 0,
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "editing",
+      "to": "editing",
+      "label": "move-rune",
+      "requires": {},
+      "effects": {
+        "dirty": 1,
+        "validated": 0,
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "editing",
+      "to": "editing",
+      "label": "delete-rune",
+      "requires": {},
+      "effects": {
+        "dirty": 1,
+        "validated": 0,
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "editing",
+      "to": "editing",
+      "label": "connect-ink-path",
+      "requires": {},
+      "effects": {
+        "dirty": 1,
+        "validated": 0,
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "editing",
+      "to": "editing",
+      "label": "delete-ink-path",
+      "requires": {},
+      "effects": {
+        "dirty": 1,
+        "validated": 0,
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "editing",
+      "to": "editing",
+      "label": "edit-scene-or-page-settings",
+      "requires": {},
+      "effects": {
+        "dirty": 1,
+        "validated": 0,
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "editing",
+      "to": "validating",
+      "label": "request-validation",
+      "requires": {},
+      "effects": {
+        "validated": 0,
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "validating",
+      "to": "editing",
+      "label": "validation-succeeded",
+      "requires": {},
+      "effects": {
+        "validated": 1
+      }
+    },
+    {
+      "from": "validating",
+      "to": "invalid",
+      "label": "validation-failed",
+      "requires": {},
+      "effects": {
+        "validated": 0,
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "invalid",
+      "to": "editing",
+      "label": "return-to-fix-errors",
+      "requires": {},
+      "effects": {}
+    },
+    {
+      "from": "editing",
+      "to": "preview",
+      "label": "run-spell",
+      "requires": {
+        "validated": {
+          "gt": 0
+        }
+      },
+      "effects": {
+        "preview_active": 1,
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "preview",
+      "to": "preview",
+      "label": "evaluation-result-ready",
+      "requires": {},
+      "effects": {
+        "runtime_ready": 1
+      }
+    },
+    {
+      "from": "preview",
+      "to": "preview",
+      "label": "toggle-scene-input",
+      "requires": {},
+      "effects": {
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "preview",
+      "to": "editing",
+      "label": "stop-preview",
+      "requires": {},
+      "effects": {
+        "preview_active": 0,
+        "runtime_ready": 0
+      }
+    },
+    {
+      "from": "preview",
+      "to": "tracing",
+      "label": "explain-spell",
+      "requires": {
+        "runtime_ready": {
+          "gt": 0
+        }
+      },
+      "effects": {
+        "preview_active": 0,
+        "trace_active": 1
+      }
+    },
+    {
+      "from": "tracing",
+      "to": "tracing",
+      "label": "inspect-explanation",
+      "requires": {},
+      "effects": {}
+    },
+    {
+      "from": "tracing",
+      "to": "preview",
+      "label": "close-explanation",
+      "requires": {},
+      "effects": {
+        "trace_active": 0,
+        "preview_active": 1
+      }
+    },
+    {
+      "from": "editing",
+      "to": "saving",
+      "label": "save-page",
+      "requires": {},
+      "effects": {}
+    },
+    {
+      "from": "saving",
+      "to": "editing",
+      "label": "save-succeeded-existing-page",
+      "requires": {
+        "page_saved": {
+          "gt": 0
+        }
+      },
+      "effects": {
+        "dirty": 0
+      }
+    },
+    {
+      "from": "saving",
+      "to": "editing",
+      "label": "save-succeeded-first-page",
+      "requires": {
+        "page_saved": {
+          "lt": 1
+        },
+        "library_has_pages": {
+          "lt": 1
+        }
+      },
+      "effects": {
+        "page_saved": 1,
+        "library_has_pages": 1,
+        "dirty": 0
+      }
+    },
+    {
+      "from": "saving",
+      "to": "editing",
+      "label": "save-succeeded-additional-page",
+      "requires": {
+        "page_saved": {
+          "lt": 1
+        },
+        "library_has_pages": {
+          "gt": 0
+        }
+      },
+      "effects": {
+        "page_saved": 1,
+        "library_has_many": 1,
+        "dirty": 0
+      }
+    },
+    {
+      "from": "saving",
+      "to": "save-error",
+      "label": "save-failed",
+      "requires": {},
+      "effects": {}
+    },
+    {
+      "from": "save-error",
+      "to": "saving",
+      "label": "retry-save",
+      "requires": {},
+      "effects": {}
+    },
+    {
+      "from": "save-error",
+      "to": "editing",
+      "label": "return-to-editor-after-save-error",
+      "requires": {},
+      "effects": {}
+    }
+  ]
+}
