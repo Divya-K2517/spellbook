@@ -1,0 +1,1341 @@
+# Firefly Society – Application Workflow and Blink Cycle
+#
+# A model preserves selected facts so that a property becomes answerable.
+#
+# Engineering question:
+#
+#   Can a user shape a garden, watch fireflies influence their neighbors,
+#   follow one firefly, read the story its history produces, save the
+#   garden, and reopen or delete it, without silently discarding unsaved
+#   work, silently deleting a saved garden, or switching on a layer whose
+#   prerequisite layer is missing?
+#
+# Central question of the product:
+#
+#   What happens when simple individuals influence their neighbors?
+#
+# This model represents the whole application's user workflow plus the
+# blink cycle of one firefly. It does not represent any particular
+# garden, and it does not predict what the fireflies will do.
+#
+# Three simulation layers, built in this order:
+#
+#   Layer 1  Blinking rhythms   Each firefly has a timer that fills toward
+#                               a threshold, flashes, and resets. A nearby
+#                               flash nudges the timer.
+#   Layer 2  Movement           Fireflies drift, keep their distance, stay
+#                               near appealing places, and sometimes wander.
+#                               Kept separate from blinking so a surprising
+#                               pattern can be traced to timing or to
+#                               changing neighbors.
+#   Layer 3  Fictional society  Familiarity grows from repeated peaceful
+#                               encounters and fades with separation.
+#                               Personalities (shy, curious, loyal,
+#                               wanderer) change the rules. The society is
+#                               a fictional layer, not a claim about real
+#                               firefly social behavior.
+#
+# Important abstractions:
+#
+#   Synchronization is an observed outcome, never a promise. The model
+#   receives "synchrony observed" and "synchrony lost" as events from the
+#   simulation and never computes them. It does not guarantee that patches
+#   of synchronized light will ever form.
+#
+#   A saved snapshot holds the garden's terrain, population, and layer
+#   settings. Their contents are not represented. When a garden is reopened,
+#   those facts are unknown, so reopening offers every combination.
+#
+#   The pond lift is temporary. Lifting a barrier to watch two groups meet
+#   is a view of the garden, not an edit. It never makes the garden dirty
+#   and is never saved.
+#
+# Unsaved work cannot be abandoned through ordinary navigation.
+# An explicit discard action is required.
+#
+# Machine rationale lives on the application entity, following the
+# template's annotation workaround.
+
+mage: 1
+
+system:
+  id: firefly-society
+  name: Firefly Society
+  description: >
+    A dark garden of glowing fireflies with emergent behavior. Users shape
+    the world (ponds, bushes, new fireflies, how far fireflies can see)
+    rather than controlling individual fireflies. Nearby fireflies nudge
+    each other's blink timers, drift through the garden, and, in a
+    fictional layer, form familiarity that changes how they move and
+    influence each other. Users can follow one firefly, read the story its
+    recorded events produce, replay its path, view a nightly postcard, and
+    save or reopen gardens.
+
+entities:
+
+  application:
+    type: application
+    label: Firefly Society
+    notes:
+      - id: application-model-rationale
+        kind: rationale
+        text: >
+          The application-workflow machine represents the major
+          interface modes and the conditions governing movement between
+          them. It preserves unsaved-change status, whether the
+          simulation is running, whether a firefly is selected, whether
+          the pond is temporarily lifted, which layers are enabled,
+          whether any events have been recorded, and how many saved
+          gardens exist. It deliberately abstracts away individual
+          firefly state, exact terrain geometry, timing values,
+          familiarity numbers, and persistent-storage implementation.
+
+      - id: layer-ladder-rationale
+        kind: rationale
+        text: >
+          Layers form a ladder: blinking is always on, movement requires
+          nothing else, and society requires movement. Society is
+          familiarity from repeated encounters, and encounters need
+          neighbors to change. A layer cannot be switched off while a
+          higher layer depends on it. This keeps the first layers
+          understandable in isolation, as the design intends.
+
+      - id: emergence-boundary
+        kind: rationale
+        text: >
+          Synchrony is modeled as an observed event from the simulation.
+          The workflow verifies that the interface handles that outcome
+          consistently. It does not verify, and does not promise, that
+          the chosen coupling rule produces synchronization.
+
+      - id: snapshot-boundary
+        kind: rationale
+        text: >
+          A saved snapshot belongs to one garden and holds terrain,
+          population, and layer settings. Recorded events, selection, and
+          the temporary pond lift are not part of a snapshot. Opening a
+          garden starts a new night with an empty event history.
+
+    provenance:
+      created_by: firefly-society-design
+      prompt: >
+        Plan the system design of the Firefly society idea: a glowing
+        world with emergent behavior, built in layers from blinking
+        rhythms to movement to a fictional social system.
+      rationale: >
+        Adapted from the Logic Spellbook v2 workflow model, keeping its
+        unsaved-work, multiple-saved-pages, and confirmed-deletion
+        guards.
+
+  garden-library:
+    type: interface-region
+    label: Garden Library
+    notes:
+      - id: library-purpose
+        kind: rationale
+        text: >
+          The entry screen for creating a garden, reopening a saved
+          garden, or deleting one after confirmation.
+
+  garden:
+    type: document
+    label: Garden
+    notes:
+      - id: garden-purpose
+        kind: rationale
+        text: >
+          The world: terrain (ponds, bushes), the firefly population
+          (thirty to begin with, each with its own timer rhythm and
+          optional personality), the vision range, and the layer
+          settings. Changes to these make the garden dirty.
+
+  terrain:
+    type: interface-region
+    label: Terrain Tools
+    notes:
+      - id: terrain-purpose
+        kind: rationale
+        text: >
+          Draw or erase a pond, which separates groups, and place or
+          remove bushes, which act as gathering spots. A pond can be
+          lifted temporarily while watching.
+
+  firefly-population:
+    type: simulation-component
+    label: Firefly Population
+    notes:
+      - id: population-purpose
+        kind: rationale
+        text: >
+          Holds every firefly. Each has a blink timer, a position, a
+          vision range shared from the garden setting, and, in layer
+          three, familiarity with others and a personality. Adding a
+          firefly with a different rhythm is a garden edit.
+
+  blink-oscillator:
+    type: simulation-component
+    label: Blink Oscillator (Layer 1)
+    notes:
+      - id: oscillator-purpose
+        kind: rationale
+        text: >
+          Advances each firefly's timer, fires a flash at threshold,
+          resets, and applies the nudge from a visible neighbor's flash.
+          The exact coupling rule and parameters are outside this
+          workflow model, and the outcome is not promised to be perfect
+          synchronization.
+
+  movement-system:
+    type: simulation-component
+    label: Movement System (Layer 2)
+    notes:
+      - id: movement-purpose
+        kind: rationale
+        text: >
+          Drift, separation from close neighbors, attraction to bushes,
+          occasional wandering, and obstruction by ponds. Movement and
+          blinking are updated by separate steps so each can be
+          understood on its own.
+
+  social-memory:
+    type: simulation-component
+    label: Social Memory (Layer 3)
+    notes:
+      - id: social-purpose
+        kind: rationale
+        text: >
+          Familiarity rises with repeated peaceful encounters, falls
+          with long separation, and feeds back into attraction (movement)
+          and influence strength (blinking). A friendship must change
+          behavior; a label with no effect is a defect. Personalities
+          modify the rules.
+
+  synchrony-observer:
+    type: application-component
+    label: Synchrony Observer
+    notes:
+      - id: observer-purpose
+        kind: rationale
+        text: >
+          Watches for groups of fireflies flashing together and reports
+          independently synchronized groups so they can be colored
+          differently. The workflow model receives its reports as events.
+
+  event-log:
+    type: application-component
+    label: Event Log
+    notes:
+      - id: log-purpose
+        kind: rationale
+        text: >
+          Records encounters, group changes, flash matches, and world
+          edits during a night. It is the only source for stories,
+          replays, relationship maps, and postcards.
+
+  story-generator:
+    type: application-component
+    label: Story Generator
+    notes:
+      - id: story-purpose
+        kind: rationale
+        text: >
+          Turns recorded events into short observations from templates
+          (for example, two fireflies matching rhythm briefly, then
+          separating when a pond appears). No chatbot is involved.
+
+  follow-panel:
+    type: interface-region
+    label: Follow Panel
+    notes:
+      - id: follow-purpose
+        kind: rationale
+        text: >
+          Shows the selected firefly, including a circular indicator
+          filling toward its next flash. Entry point to the story,
+          path replay, and relationship constellation.
+
+  postcard:
+    type: interface-region
+    label: Nightly Postcard
+    notes:
+      - id: postcard-purpose
+        kind: rationale
+        text: >
+          A picture of the garden's largest gathering, built from the
+          event log.
+
+  garden-storage:
+    type: application-component
+    label: Garden Storage
+    notes:
+      - id: storage-purpose
+        kind: rationale
+        text: >
+          Saves, loads, and deletes garden snapshots. Saving may succeed
+          or fail; dirty status is cleared only after success.
+
+machines:
+
+  application-workflow:
+    label: Application Workflow
+    entity: application
+    description: >
+      Models the user-facing lifecycle of a garden and the guards
+      preventing accidental loss of unsaved work, accidental deletion of
+      a saved garden, reading history that does not exist, and turning on
+      a layer whose prerequisite is off.
+
+    purpose:
+      question: >
+        Can a garden move through creation, shaping, running, following,
+        story and replay viewing, saving, reopening, and deletion while
+        respecting the layer ladder, the unsaved-work boundary, and the
+        confirmed-deletion boundary?
+
+      represents:
+        - garden creation, reopening, and confirmed deletion
+        - several saved gardens
+        - persistent world edits (terrain, population, personalities,
+          vision range, layer settings)
+        - starting and pausing the simulation
+        - following one firefly
+        - temporary pond lift
+        - synchrony being observed or lost
+        - recording of events
+        - story, path replay, and postcard views
+        - saving success and failure
+        - unsaved-change status and explicit discard
+        - the layer ladder
+
+      omits:
+        - individual firefly state, timers, and positions
+        - exact terrain geometry
+        - the coupling rule and its parameters
+        - familiarity values and personality parameters
+        - whether synchrony actually occurs for given parameters
+        - which firefly is selected, and how many exist
+        - content of stories, replays, and postcards
+        - animation timing and frame rate
+        - storage format and filesystem operations
+        - garden naming, renaming, and duplication
+        - undo and redo history
+        - application crashes and recovery
+
+    initial: library
+
+    states:
+
+      library:
+        label: Garden Library
+        description: >
+          Shows the new-garden action and any saved gardens.
+
+      confirming-delete:
+        label: Confirm Deletion
+        description: >
+          Asks for explicit confirmation before a saved garden is
+          deleted. Nothing is deleted until the user confirms.
+
+      shaping:
+        label: Shaping the Garden
+        description: >
+          The simulation is paused. Terrain tools, add-firefly,
+          personality assignment, vision range, and layer switches are
+          available. Save and return-to-library are available here only.
+
+      observing:
+        label: Watching the Garden
+        description: >
+          The simulation is running. Terrain and population cannot be
+          edited, but the vision range can be adjusted, a pond can be
+          lifted temporarily, and a firefly can be followed.
+
+      story:
+        label: Firefly Story
+        description: >
+          Shows generated observations for the selected firefly and its
+          relationship constellation. The simulation is paused.
+
+      replay:
+        label: Path Replay
+        description: >
+          Replays the selected firefly's recorded path. The simulation
+          is paused.
+
+      postcard:
+        label: Nightly Postcard
+        description: >
+          Shows the garden's largest gathering from recorded events.
+          The simulation is paused.
+
+      saving:
+        label: Saving Garden
+        description: >
+          Editing is paused while persistence is pending.
+
+      save-error:
+        label: Save Failed
+        description: >
+          Reports persistence failure. Unsaved changes remain.
+
+    variables:
+
+      dirty:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether the garden has unsaved changes.
+          Cleared by successful saving or explicit discard.
+
+      garden_saved:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether the garden currently open has a stored snapshot.
+          This is not necessarily the latest edited version.
+
+      library_has_gardens:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: Whether at least one saved garden exists.
+
+      library_has_many:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: Whether at least two saved gardens exist.
+
+      library_visible:
+        type: integer
+        range: [0, 1]
+        initial: 1
+        description: Whether the garden library is visible.
+
+      delete_pending:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether a deletion is awaiting confirmation.
+
+      sim_running:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: Whether the simulation is advancing.
+
+      selected:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether a firefly is being followed. Which one is not
+          represented.
+
+      barrier_present:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether the garden has a pond or other barrier separating
+          groups.
+
+      barrier_open:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether the barrier is temporarily lifted. Never saved and
+          never makes the garden dirty.
+
+      movement_enabled:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: Whether layer two (movement) is on.
+
+      social_enabled:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether layer three (familiarity and personalities) is on.
+
+      sync_seen:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether the simulation currently reports at least one patch of
+          synchronized flashing. An observed outcome, not a guarantee.
+
+      history_recorded:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether any events have been recorded this night. Required to
+          open stories, replays, and postcards.
+
+      history_view_active:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether a story, path replay, or postcard is being shown.
+
+    transitions:
+
+      # ---------------------------------------------------------
+      # Garden lifecycle
+      # ---------------------------------------------------------
+
+      # A new garden starts at the smallest satisfying version:
+      # thirty fireflies with blink timers only.
+      - from: library
+        to: shaping
+        label: create-new-garden
+        effects:
+          dirty: 1
+          garden_saved: 0
+          library_visible: 0
+          sim_running: 0
+          selected: 0
+          barrier_present: 0
+          barrier_open: 0
+          movement_enabled: 0
+          social_enabled: 0
+          sync_seen: 0
+          history_recorded: 0
+          history_view_active: 0
+
+      # Reopening restores terrain and layer settings from the snapshot.
+      # Their contents are not represented, so every combination of
+      # barrier presence and layer level is offered. Reopening starts a
+      # new night: no events, no selection, the pond not lifted.
+      - from: library
+        to: shaping
+        label: reopen-saved-garden-blink-only
+        requires:
+          library_has_gardens: {gt: 0}
+        effects:
+          dirty: 0
+          garden_saved: 1
+          library_visible: 0
+          sim_running: 0
+          selected: 0
+          barrier_present: 0
+          barrier_open: 0
+          movement_enabled: 0
+          social_enabled: 0
+          sync_seen: 0
+          history_recorded: 0
+          history_view_active: 0
+
+      - from: library
+        to: shaping
+        label: reopen-saved-garden-blink-only-with-barrier
+        requires:
+          library_has_gardens: {gt: 0}
+        effects:
+          dirty: 0
+          garden_saved: 1
+          library_visible: 0
+          sim_running: 0
+          selected: 0
+          barrier_present: 1
+          barrier_open: 0
+          movement_enabled: 0
+          social_enabled: 0
+          sync_seen: 0
+          history_recorded: 0
+          history_view_active: 0
+
+      - from: library
+        to: shaping
+        label: reopen-saved-garden-with-movement
+        requires:
+          library_has_gardens: {gt: 0}
+        effects:
+          dirty: 0
+          garden_saved: 1
+          library_visible: 0
+          sim_running: 0
+          selected: 0
+          barrier_present: 0
+          barrier_open: 0
+          movement_enabled: 1
+          social_enabled: 0
+          sync_seen: 0
+          history_recorded: 0
+          history_view_active: 0
+
+      - from: library
+        to: shaping
+        label: reopen-saved-garden-with-movement-and-barrier
+        requires:
+          library_has_gardens: {gt: 0}
+        effects:
+          dirty: 0
+          garden_saved: 1
+          library_visible: 0
+          sim_running: 0
+          selected: 0
+          barrier_present: 1
+          barrier_open: 0
+          movement_enabled: 1
+          social_enabled: 0
+          sync_seen: 0
+          history_recorded: 0
+          history_view_active: 0
+
+      - from: library
+        to: shaping
+        label: reopen-saved-garden-with-society
+        requires:
+          library_has_gardens: {gt: 0}
+        effects:
+          dirty: 0
+          garden_saved: 1
+          library_visible: 0
+          sim_running: 0
+          selected: 0
+          barrier_present: 0
+          barrier_open: 0
+          movement_enabled: 1
+          social_enabled: 1
+          sync_seen: 0
+          history_recorded: 0
+          history_view_active: 0
+
+      - from: library
+        to: shaping
+        label: reopen-saved-garden-with-society-and-barrier
+        requires:
+          library_has_gardens: {gt: 0}
+        effects:
+          dirty: 0
+          garden_saved: 1
+          library_visible: 0
+          sim_running: 0
+          selected: 0
+          barrier_present: 1
+          barrier_open: 0
+          movement_enabled: 1
+          social_enabled: 1
+          sync_seen: 0
+          history_recorded: 0
+          history_view_active: 0
+
+      # Ordinary navigation must not abandon unsaved edits.
+      - from: shaping
+        to: library
+        label: return-to-library
+        requires:
+          dirty: {lt: 1}
+        effects:
+          library_visible: 1
+          garden_saved: 0
+          selected: 0
+          sync_seen: 0
+          history_recorded: 0
+
+      # Separate, explicitly confirmed discard action.
+      - from: shaping
+        to: library
+        label: confirm-discard-and-return
+        requires:
+          dirty: {gt: 0}
+        effects:
+          dirty: 0
+          library_visible: 1
+          garden_saved: 0
+          selected: 0
+          sync_seen: 0
+          history_recorded: 0
+
+      # ---------------------------------------------------------
+      # Deletion of a saved garden (always confirmed)
+      # ---------------------------------------------------------
+
+      - from: library
+        to: confirming-delete
+        label: request-delete-garden
+        requires:
+          library_has_gardens: {gt: 0}
+        effects:
+          delete_pending: 1
+
+      - from: confirming-delete
+        to: library
+        label: cancel-delete
+        effects:
+          delete_pending: 0
+
+      - from: confirming-delete
+        to: library
+        label: confirm-delete-last-garden
+        requires:
+          library_has_many: {lt: 1}
+        effects:
+          library_has_gardens: 0
+          delete_pending: 0
+
+      # Deleting one of several leaves either one or several behind.
+      # The model cannot tell which, so both outcomes are offered.
+      - from: confirming-delete
+        to: library
+        label: confirm-delete-leaving-one
+        requires:
+          library_has_many: {gt: 0}
+        effects:
+          library_has_many: 0
+          delete_pending: 0
+
+      - from: confirming-delete
+        to: library
+        label: confirm-delete-leaving-several
+        requires:
+          library_has_many: {gt: 0}
+        effects:
+          delete_pending: 0
+
+      # ---------------------------------------------------------
+      # Shaping the world (persistent edits, simulation paused)
+      #
+      # Every persistent edit makes the garden dirty. Terrain and
+      # population edits stop the simulation from being treated as
+      # reporting synchrony for the previous world.
+      # ---------------------------------------------------------
+
+      - from: shaping
+        to: shaping
+        label: draw-pond
+        effects:
+          dirty: 1
+          barrier_present: 1
+          sync_seen: 0
+
+      - from: shaping
+        to: shaping
+        label: erase-pond
+        effects:
+          dirty: 1
+          barrier_present: 0
+          barrier_open: 0
+          sync_seen: 0
+
+      - from: shaping
+        to: shaping
+        label: place-bush
+        effects:
+          dirty: 1
+          sync_seen: 0
+
+      - from: shaping
+        to: shaping
+        label: remove-bush
+        effects:
+          dirty: 1
+          sync_seen: 0
+
+      - from: shaping
+        to: shaping
+        label: add-firefly-with-new-rhythm
+        effects:
+          dirty: 1
+          sync_seen: 0
+
+      - from: shaping
+        to: shaping
+        label: adjust-vision-range
+        effects:
+          dirty: 1
+          sync_seen: 0
+
+      - from: shaping
+        to: shaping
+        label: assign-personality
+        effects:
+          dirty: 1
+
+      # ---------------------------------------------------------
+      # The layer ladder
+      #
+      # Movement requires nothing. Society requires movement.
+      # Movement cannot be switched off while society is on.
+      # ---------------------------------------------------------
+
+      - from: shaping
+        to: shaping
+        label: enable-movement-layer
+        effects:
+          dirty: 1
+          movement_enabled: 1
+          sync_seen: 0
+
+      - from: shaping
+        to: shaping
+        label: disable-movement-layer
+        requires:
+          social_enabled: {lt: 1}
+        effects:
+          dirty: 1
+          movement_enabled: 0
+          sync_seen: 0
+
+      - from: shaping
+        to: shaping
+        label: enable-social-layer
+        requires:
+          movement_enabled: {gt: 0}
+        effects:
+          dirty: 1
+          social_enabled: 1
+          sync_seen: 0
+
+      - from: shaping
+        to: shaping
+        label: disable-social-layer
+        effects:
+          dirty: 1
+          social_enabled: 0
+          sync_seen: 0
+
+      # ---------------------------------------------------------
+      # Running the garden
+      # ---------------------------------------------------------
+
+      - from: shaping
+        to: observing
+        label: start-simulation
+        effects:
+          sim_running: 1
+
+      # Pausing returns to shaping. A lifted pond is put back first, so
+      # terrain edits always start from the real terrain.
+      - from: observing
+        to: shaping
+        label: pause-to-shape
+        effects:
+          sim_running: 0
+          selected: 0
+          barrier_open: 0
+          sync_seen: 0
+
+      # The vision slider is available while watching, so its effect can
+      # be seen as it changes. It is a persistent garden setting.
+      - from: observing
+        to: observing
+        label: adjust-vision-range-live
+        effects:
+          dirty: 1
+          sync_seen: 0
+
+      # ---------------------------------------------------------
+      # Following one firefly
+      # ---------------------------------------------------------
+
+      - from: observing
+        to: observing
+        label: follow-firefly
+        effects:
+          selected: 1
+
+      - from: observing
+        to: observing
+        label: unfollow-firefly
+        effects:
+          selected: 0
+
+      # ---------------------------------------------------------
+      # Temporary pond lift (a view, not an edit)
+      # ---------------------------------------------------------
+
+      - from: observing
+        to: observing
+        label: lift-barrier
+        requires:
+          barrier_present: {gt: 0}
+          barrier_open: {lt: 1}
+        effects:
+          barrier_open: 1
+          sync_seen: 0
+
+      - from: observing
+        to: observing
+        label: restore-barrier
+        requires:
+          barrier_open: {gt: 0}
+        effects:
+          barrier_open: 0
+          sync_seen: 0
+
+      # ---------------------------------------------------------
+      # Events reported by the simulation
+      # ---------------------------------------------------------
+
+      - from: observing
+        to: observing
+        label: events-recorded
+        effects:
+          history_recorded: 1
+
+      - from: observing
+        to: observing
+        label: synchrony-observed
+        effects:
+          sync_seen: 1
+
+      - from: observing
+        to: observing
+        label: synchrony-lost
+        effects:
+          sync_seen: 0
+
+      # ---------------------------------------------------------
+      # Reading what happened
+      # ---------------------------------------------------------
+
+      - from: observing
+        to: story
+        label: open-story
+        requires:
+          selected: {gt: 0}
+          history_recorded: {gt: 0}
+        effects:
+          sim_running: 0
+          history_view_active: 1
+
+      - from: story
+        to: observing
+        label: close-story
+        effects:
+          sim_running: 1
+          history_view_active: 0
+
+      - from: observing
+        to: replay
+        label: open-path-replay
+        requires:
+          selected: {gt: 0}
+          history_recorded: {gt: 0}
+        effects:
+          sim_running: 0
+          history_view_active: 1
+
+      - from: replay
+        to: observing
+        label: close-path-replay
+        effects:
+          sim_running: 1
+          history_view_active: 0
+
+      - from: observing
+        to: postcard
+        label: open-postcard
+        requires:
+          history_recorded: {gt: 0}
+        effects:
+          sim_running: 0
+          history_view_active: 1
+
+      - from: postcard
+        to: observing
+        label: close-postcard
+        effects:
+          sim_running: 1
+          history_view_active: 0
+
+      # ---------------------------------------------------------
+      # Save workflow
+      # ---------------------------------------------------------
+
+      - from: shaping
+        to: saving
+        label: save-garden
+
+      # Re-saving a garden that already has a snapshot.
+      - from: saving
+        to: shaping
+        label: save-succeeded-existing-garden
+        requires:
+          garden_saved: {gt: 0}
+        effects:
+          dirty: 0
+
+      # First save of a new garden into an empty library.
+      - from: saving
+        to: shaping
+        label: save-succeeded-first-garden
+        requires:
+          garden_saved: {lt: 1}
+          library_has_gardens: {lt: 1}
+        effects:
+          garden_saved: 1
+          library_has_gardens: 1
+          dirty: 0
+
+      # First save of a new garden into a library that already has gardens.
+      - from: saving
+        to: shaping
+        label: save-succeeded-additional-garden
+        requires:
+          garden_saved: {lt: 1}
+          library_has_gardens: {gt: 0}
+        effects:
+          garden_saved: 1
+          library_has_many: 1
+          dirty: 0
+
+      - from: saving
+        to: save-error
+        label: save-failed
+
+      - from: save-error
+        to: saving
+        label: retry-save
+
+      - from: save-error
+        to: shaping
+        label: return-to-shaping-after-save-error
+
+  # -------------------------------------------------------------------
+  # One firefly's blink cycle (Layer 1)
+  #
+  # The same cycle runs for every firefly. Progress toward the threshold
+  # is not represented, only the phases of the cycle and whether a
+  # neighbor's flash has nudged the timer during this charge.
+  #
+  # A firefly ignores nudges while it is flashing (a refractory
+  # period). This is a design choice: without it, a burst of nearby
+  # flashes could re-trigger a firefly that has only just flashed.
+  # -------------------------------------------------------------------
+
+  firefly-blink-cycle:
+    label: Firefly Blink Cycle
+    entity: blink-oscillator
+    description: >
+      The repeating cycle of one firefly: the timer charges, a flash
+      fires at threshold, and the timer resets. A visible neighbor's
+      flash nudges the timer while it is charging.
+
+    purpose:
+      question: >
+        Does a flash only ever follow a full charge, and are nudges only
+        ever applied while the timer is charging?
+
+      represents:
+        - charging toward the threshold
+        - flashing
+        - being nudged by a visible neighbor's flash
+
+      omits:
+        - the timer's numeric progress
+        - the size and direction of a nudge
+        - how many neighbors can see this firefly
+        - the coupling rule and its parameters
+        - the duration of the flash
+
+    initial: charging
+
+    states:
+
+      charging:
+        label: Charging
+        description: >
+          The timer is filling toward its next flash.
+
+      flashing:
+        label: Flashing
+        description: >
+          The firefly is lit. Nudges are ignored until the flash ends.
+
+    variables:
+
+      flash_lit:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: Whether the firefly is currently lit.
+
+      nudged:
+        type: integer
+        range: [0, 1]
+        initial: 0
+        description: >
+          Whether a neighbor's flash has nudged the timer during the
+          current charge. Cleared when the timer resets.
+
+    transitions:
+
+      - from: charging
+        to: charging
+        label: timer-advances
+
+      - from: charging
+        to: charging
+        label: neighbor-flash-nudges-timer
+        effects:
+          nudged: 1
+
+      - from: charging
+        to: flashing
+        label: threshold-reached
+        effects:
+          flash_lit: 1
+
+      # Reset: the timer starts over and any nudge is spent.
+      - from: flashing
+        to: charging
+        label: flash-ends-and-timer-resets
+        effects:
+          flash_lit: 0
+          nudged: 0
+
+# -------------------------------------------------------------------
+# Behavioral questions
+#
+# These queries address interface reachability and safety boundaries.
+# They do not establish that fireflies synchronize, that the coupling
+# rule is sound, or that persistence is correct.
+# -------------------------------------------------------------------
+
+queries:
+
+  simulation-is-reachable:
+    name: A user can run the simulation
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.sim_running: 1
+
+  firefly-can-be-followed:
+    name: A user can follow a firefly
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.selected: 1
+        application-workflow.sim_running: 1
+
+  synchrony-can-be-observed:
+    name: Synchrony can be reported while the simulation runs
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.sync_seen: 1
+        application-workflow.sim_running: 1
+
+  running-without-synchrony-is-reachable:
+    name: The simulation can run with no synchrony reported
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.sim_running: 1
+        application-workflow.sync_seen: 0
+
+  barrier-can-be-lifted:
+    name: A pond can be temporarily lifted
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.barrier_open: 1
+        application-workflow.barrier_present: 1
+
+  society-is-reachable:
+    name: The fictional society layer can be running
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.social_enabled: 1
+        application-workflow.sim_running: 1
+
+  story-is-reachable:
+    name: A user can read a firefly's story
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.history_view_active: 1
+        application-workflow.selected: 1
+
+  garden-can-be-saved:
+    name: A saved garden snapshot can exist
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.garden_saved: 1
+
+  multiple-gardens-can-exist:
+    name: The library can hold several saved gardens
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.library_has_many: 1
+        application-workflow.library_visible: 1
+
+  deletion-is-reachable:
+    name: A deletion can await confirmation for a saved garden
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.delete_pending: 1
+        application-workflow.library_has_gardens: 1
+
+  society-without-movement-is-reachable:
+    name: Society can be on while movement is off
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.social_enabled: 1
+        application-workflow.movement_enabled: 0
+
+  lifted-barrier-without-barrier-is-reachable:
+    name: A barrier can be lifted when none exists
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.barrier_open: 1
+        application-workflow.barrier_present: 0
+
+  history-view-without-history-is-reachable:
+    name: A story, replay, or postcard can open with no recorded events
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.history_view_active: 1
+        application-workflow.history_recorded: 0
+
+  history-view-while-running-is-reachable:
+    name: A story, replay, or postcard can be shown while the simulation runs
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.history_view_active: 1
+        application-workflow.sim_running: 1
+
+  running-in-library-is-reachable:
+    name: The simulation can be running while the library is shown
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.sim_running: 1
+        application-workflow.library_visible: 1
+
+  dirty-library-is-reachable:
+    name: Unsaved work can remain while the library is shown
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.library_visible: 1
+        application-workflow.dirty: 1
+
+  pending-delete-without-gardens-is-reachable:
+    name: A deletion can await confirmation with no saved gardens
+    kind: behavior
+    quantifier: exists
+    behavior:
+      form: reach
+      target:
+        application-workflow.delete_pending: 1
+        application-workflow.library_has_gardens: 0
+
+
+requirements:
+
+  layer-ladder:
+    statement: >
+      The fictional society layer must never be on while the movement
+      layer is off. Familiarity comes from repeated encounters, and
+      encounters need neighbors to change.
+    expressed_as: society-without-movement-is-reachable
+    satisfied_when: refuted
+
+  lift-requires-a-barrier:
+    statement: >
+      A barrier can only be temporarily lifted while a barrier exists.
+    expressed_as: lifted-barrier-without-barrier-is-reachable
+    satisfied_when: refuted
+
+  history-before-viewing:
+    statement: >
+      A story, path replay, or postcard must not be shown unless events
+      have been recorded.
+    expressed_as: history-view-without-history-is-reachable
+    satisfied_when: refuted
+
+  views-pause-the-simulation:
+    statement: >
+      The simulation must not advance while a story, path replay, or
+      postcard is being shown, so the history being read does not
+      change underneath the reader.
+    expressed_as: history-view-while-running-is-reachable
+    satisfied_when: refuted
+
+  explicit-unsaved-work-resolution:
+    statement: >
+      The application must not return to the library with unresolved
+      unsaved edits. The user must save successfully or explicitly
+      discard those edits.
+    expressed_as: dirty-library-is-reachable
+    satisfied_when: refuted
+
+  no-simulation-in-library:
+    statement: >
+      The simulation must not keep running once the user is back at
+      the library.
+    expressed_as: running-in-library-is-reachable
+    satisfied_when: refuted
+
+  deletion-needs-a-saved-garden:
+    statement: >
+      A deletion must not await confirmation unless at least one saved
+      garden exists.
+    expressed_as: pending-delete-without-gardens-is-reachable
+    satisfied_when: refuted
+
+  # Note: "deletion requires confirmation" is enforced structurally.
+  # The only transitions that clear library_has_gardens or library_has_many
+  # as a result of deletion originate from confirming-delete, and the only
+  # way into that state is request-delete-garden. A reachability query
+  # cannot express "never without passing through a state", so this
+  # property is documented here rather than as a requirement.
+  #
+  # Note: there is deliberately no requirement that synchrony is ever
+  # observed. "synchrony-can-be-observed" and
+  # "running-without-synchrony-is-reachable" are both expected to be
+  # reachable: the design does not promise perfect synchronization.
