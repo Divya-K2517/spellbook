@@ -4,7 +4,7 @@
  * familiarity between fireflies) deliberately lives elsewhere, in the simulation.
  */
 
-export type PersonalityId = 'none' | 'shy' | 'curious' | 'loyal' | 'wanderer';
+export type PersonalityId = 'none' | 'shy' | 'curious' | 'loyal' | 'wanderer' | 'troublemaker';
 
 export interface Pond {
   id: number;

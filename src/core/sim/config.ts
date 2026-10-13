@@ -181,6 +181,15 @@ export const PERSONALITY_RULES: Record<PersonalityId, PersonalityRule> = {
     restlessMultiplier: 5,
     blurb: 'Frequently leaves its current group.',
   },
+  troublemaker: {
+    label: 'Troublemaker',
+    familiarAttraction: 0.5, // Pull toward neighbors, scaled by how familiar they are.
+    strangerAttraction: 0.8, // Pull toward neighbors, scaled by how unfamiliar they are. Negative repels.
+    crowdLimit: 3, // More visible neighbors than this and the firefly backs away from the crowd.
+    restlessMultiplier: 4, // Multiplier on how often the firefly wanders off alone.
+    blurb: 'Disrupts groups and seeks out new/unfamiliar company.',
+
+  },
 };
 
 export const PERSONALITY_IDS = Object.keys(PERSONALITY_RULES) as PersonalityId[];
