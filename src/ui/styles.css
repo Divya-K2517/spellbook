@@ -1,0 +1,60 @@
+:root {
+  --bg: #060d14;
+  --panel: rgba(14, 28, 36, 0.86);
+  --panel-solid: #0e1c24;
+  --line: rgba(160, 220, 190, 0.16);
+  --text: #e8f5e0;
+  --dim: rgba(232, 245, 224, 0.62);
+  --glow: #d9ff6a;
+  --glow-soft: rgba(217, 255, 106, 0.16);
+  --danger: #ff8a7a;
+  --radius: 14px;
+  font-family: ui-rounded, 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body, #app { height: 100%; margin: 0; }
+body {
+  background: radial-gradient(1200px 700px at 50% -10%, #12302a 0%, var(--bg) 60%);
+  color: var(--text);
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.11); border-color: rgba(160, 220, 190, 0.4); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.38; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+button.primary { background: var(--glow); color: #14210a; border-color: transparent; font-weight: 650; }
+button.primary:hover:not(:disabled) { background: #e6ff8e; }
+button.danger { color: var(--danger); }
+button.selected { background: var(--glow-soft); border-color: var(--glow); color: var(--glow); }
+
+input[type='range'] { width: 100%; accent-color: var(--glow); }
+select {
+  font: inherit; color: var(--text); background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line); border-radius: 10px; padding: 0.45rem 0.6rem; width: 100%;
+}
+select option { background: var(--panel-solid); }
+
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: 0.01em; }
+.dim { color: var(--dim); }
+.chip {
+  display: inline-block; font-size: 0.75rem; padding: 0.12rem 0.55rem; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--dim);
+}
+.chip.on { color: var(--glow); border-color: rgba(217, 255, 106, 0.4); background: var(--glow-soft); }
+.panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  backdrop-filter: blur(8px);
+}

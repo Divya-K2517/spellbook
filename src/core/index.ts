@@ -1,9 +1,12 @@
-/**
- * The logic layer. Nothing under src/core may import from src/app or src/ui,
- * and nothing here may touch the DOM or browser storage.
- */
-export * from './circuit';
-export * from './validator';
-export * from './simulator';
+export * from './garden/types';
+export * from './garden/defaults';
+export * from './garden/serialize';
 export * from './machine';
-export * from './persistence';
+export { Simulation, type PondErase } from './sim/simulation';
+export { DEFAULT_CONFIG, PERSONALITY_IDS, PERSONALITY_RULES, type SimConfig, type PersonalityRule } from './sim/config';
+export { LAYERS, LAYER_ORDER, LayerLadderError, assertLadder, type LayerId } from './sim/layers';
+export { generateStory, describePostcard, constellation, type Postcard, type Constellation } from './sim/story';
+export { pairKey } from './sim/log';
+export { personalityOf } from './sim/world';
+export { formatClock } from './math/vec';
+export { createRng } from './math/rng';

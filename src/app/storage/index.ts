@@ -1,3 +1,3 @@
-export * from './types';
-export * from './memoryStore';
-export * from './indexedDbStore';
+export type { GardenStore } from './types';
+export { MemoryGardenStore } from './memoryStore';
+export { IndexedDbGardenStore } from './indexedDbStore';

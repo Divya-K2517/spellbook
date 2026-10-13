@@ -5,7 +5,6 @@
     "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true,
-    "noUncheckedIndexedAccess": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
@@ -17,6 +16,8 @@
       "@core/*": ["./src/core/*"],
       "@app": ["./src/app/index.ts"],
       "@app/*": ["./src/app/*"],
+      "@render": ["./src/render/index.ts"],
+      "@render/*": ["./src/render/*"],
       "@ui/*": ["./src/ui/*"]
     }
   },

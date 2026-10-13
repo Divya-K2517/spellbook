@@ -1,82 +1,62 @@
-import type { SpellPage } from '@core/circuit';
-import type { PageStore } from './types';
+import { readRecord } from '@core/garden/serialize';
+import type { GardenRecord } from '@core/garden/types';
+import type { GardenStore } from './types';
 
-const DB_NAME = 'logic-spellbook';
-const DB_VERSION = 1;
-const PAGES = 'pages';
+const DB_NAME = 'firefly-society';
+const STORE = 'gardens';
 
-function openDatabase(): Promise<IDBDatabase> {
+function request<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(PAGES)) {
-        db.createObjectStore(PAGES, { keyPath: 'id' });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('Could not open the spellbook database.'));
-    request.onblocked = () => reject(new Error('The spellbook database is blocked by another tab.'));
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error ?? new Error('IndexedDB request failed'));
   });
 }
 
-function wrap<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('Database request failed.'));
-  });
-}
-
-function finished(tx: IDBTransaction): Promise<void> {
+function done(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error('Database transaction failed.'));
-    tx.onabort = () => reject(tx.error ?? new Error('Database transaction aborted.'));
+    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB transaction failed'));
+    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'));
   });
 }
 
-/** Browser-only persistence: every saved page is one record, keyed by page id. */
-export function createIndexedDbStore(): PageStore {
-  let dbPromise: Promise<IDBDatabase> | undefined;
-  const db = () => (dbPromise ??= openDatabase());
+/** Saved gardens in the browser's IndexedDB. Nothing leaves the device. */
+export class IndexedDbGardenStore implements GardenStore {
+  private db: Promise<IDBDatabase> | undefined;
 
-  return {
-    async list() {
-      const database = await db();
-      const pages = await wrap<SpellPage[]>(
-        database.transaction(PAGES, 'readonly').objectStore(PAGES).getAll(),
-      );
-      return pages.sort((a, b) => b.updatedAt - a.updatedAt);
-    },
-    async get(id) {
-      const database = await db();
-      return wrap<SpellPage | undefined>(
-        database.transaction(PAGES, 'readonly').objectStore(PAGES).get(id),
-      );
-    },
-    async put(page) {
-      const database = await db();
-      const tx = database.transaction(PAGES, 'readwrite');
-      tx.objectStore(PAGES).put(page);
-      await finished(tx);
-    },
-    async delete(id) {
-      const database = await db();
-      const tx = database.transaction(PAGES, 'readwrite');
-      tx.objectStore(PAGES).delete(id);
-      await finished(tx);
-    },
-  };
-}
+  private open(): Promise<IDBDatabase> {
+    this.db ??= new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore(STORE, { keyPath: 'id' });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error ?? new Error('could not open IndexedDB'));
+    });
+    return this.db;
+  }
 
-/** Probes IndexedDB once so callers can fall back instead of failing at first save. */
-export async function indexedDbAvailable(): Promise<boolean> {
-  if (typeof indexedDB === 'undefined') return false;
-  try {
-    const database = await openDatabase();
-    database.close();
-    return true;
-  } catch {
-    return false;
+  async list(): Promise<GardenRecord[]> {
+    const db = await this.open();
+    const raw = await request(db.transaction(STORE).objectStore(STORE).getAll());
+    // Storage is untrusted input: damaged or outdated records are skipped, not fatal.
+    return raw
+      .map(readRecord)
+      .filter((r): r is GardenRecord => r !== undefined)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  async put(record: GardenRecord): Promise<void> {
+    const db = await this.open();
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(record);
+    await done(tx);
+  }
+
+  async delete(id: string): Promise<void> {
+    const db = await this.open();
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    await done(tx);
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "spellbook",
+  "name": "firefly-society",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,10 +8,10 @@
     "dev": "npm run compile:machine && vite",
     "build": "npm run compile:machine && vite build",
     "preview": "vite preview",
-    "check": "npm run compile:machine && svelte-check --tsconfig ./tsconfig.json"
-  },
-  "dependencies": {
-    "gsap": "^3.12.5"
+    "check": "npm run compile:machine && svelte-check --tsconfig ./tsconfig.json",
+    "model:check": "tsx scripts/check-model.ts",
+    "sim:check": "tsx scripts/sim-check.ts",
+    "verify": "npm run check && npm run model:check && npm run sim:check && npm run build"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",

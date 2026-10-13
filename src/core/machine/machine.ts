@@ -1,7 +1,7 @@
-import rawTable from './table.generated.json';
+import raw from './table.generated.json';
 
 /**
- * Runtime for the application-workflow machine compiled from spell.yaml.
+ * Runtime for the application-workflow machine compiled from firefly.yaml.
  * Pure functions over plain data: no timers, no storage, no DOM.
  */
 
@@ -32,7 +32,14 @@ export type TransitionOutcome =
   | { ok: true; snapshot: MachineSnapshot; transition: TransitionDef }
   | { ok: false; reason: 'unknown-event' | 'wrong-state' | 'guard-failed' };
 
-export const table = rawTable as unknown as MachineTable;
+/** Every machine in firefly.yaml, keyed by machine id. */
+export const tables = raw.machines as unknown as Record<string, MachineTable>;
+
+/** The application workflow: the machine the UI is driven by. */
+export const table: MachineTable = tables['application-workflow']!;
+
+/** One firefly's blink cycle, for tests and documentation. */
+export const blinkTable: MachineTable = tables['firefly-blink-cycle']!;
 
 export function initialSnapshot(machine: MachineTable = table): MachineSnapshot {
   const vars: Record<string, number> = {};

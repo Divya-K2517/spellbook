@@ -1,165 +1,68 @@
 <script lang="ts">
-  import { useApp } from '../appContext.svelte';
-  import ConfirmDialog from './ConfirmDialog.svelte';
+  import type { Ui } from '../ui.svelte';
 
-  const app = useApp();
-  const pages = $derived(app.state.library);
-  const pendingDelete = $derived(
-    app.state.pendingDeleteId ? pages.find((page) => page.id === app.state.pendingDeleteId) : undefined,
-  );
+  let { ui }: { ui: Ui } = $props();
 
-  let fileInput: HTMLInputElement;
-
-  function rename(id: string, current: string) {
-    const next = window.prompt('Name this spell', current);
-    if (next !== null) void app.controller.renameSavedPage(id, next);
-  }
-
-  async function importFile(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) await app.controller.importPage(await file.text());
-    input.value = '';
-  }
-
-  const formatDate = (time: number) =>
-    new Date(time).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const when = (stamp: number) =>
+    new Date(stamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 </script>
 
 <main class="library">
   <header>
-    <h1>Logic Spellbook</h1>
-    <p>Bind runes together with glowing ink and watch the page respond.</p>
+    <div class="spark" aria-hidden="true"></div>
+    <h1>Firefly Society</h1>
+    <p class="dim">
+      A dark garden full of fireflies. You shape the world; they decide what to do with it. What happens when
+      simple individuals influence their neighbors?
+    </p>
+    <button class="primary" onclick={() => ui.session.createGarden()}>Begin a new garden</button>
   </header>
 
-  <div class="actions">
-    <button class="btn primary" onclick={() => app.controller.createNewPage()}>New spell</button>
-    <button class="btn" onclick={() => fileInput.click()}>Import page…</button>
-    <input
-      bind:this={fileInput}
-      type="file"
-      accept=".json,application/json"
-      class="sr-only"
-      onchange={importFile}
-      tabindex="-1"
-    />
-  </div>
-
-  {#if !app.state.libraryLoaded}
-    <p class="empty">Opening the book…</p>
-  {:else if pages.length === 0}
-    <p class="empty">The book is empty. Start a new spell to write its first page.</p>
-  {:else}
-    <ul class="pages">
-      {#each pages as page (page.id)}
-        <li class="card">
-          <button class="open" onclick={() => app.controller.openSavedPage(page.id)}>
-            <span class="title">{page.title}</span>
-            <span class="meta">
-              {page.runes.length} rune{page.runes.length === 1 ? '' : 's'} · {formatDate(page.updatedAt)}
-            </span>
-          </button>
-          <div class="card-actions">
-            <button class="btn small" onclick={() => rename(page.id, page.title)}>Rename</button>
-            <button class="btn small" onclick={() => app.controller.duplicateSavedPage(page.id)}>
-              Duplicate
-            </button>
-            <button class="btn small danger" onclick={() => app.controller.requestDeletePage(page.id)}>
-              Delete
-            </button>
-          </div>
-        </li>
-      {/each}
-    </ul>
-  {/if}
+  <section aria-label="Saved gardens">
+    <h2>Your gardens</h2>
+    {#if ui.library.length === 0}
+      <p class="dim empty">Nothing saved yet. Shape a garden, then save it and it will wait for you here.</p>
+    {:else}
+      <ul>
+        {#each ui.library as garden (garden.id)}
+          {@const layers = garden.data.settings.layers}
+          <li class="panel">
+            <div class="info">
+              <strong>{garden.name}</strong>
+              <span class="dim">Saved {when(garden.updatedAt)}</span>
+              <span class="chips">
+                <span class="chip">{garden.data.fireflies.length} fireflies</span>
+                {#if garden.data.terrain.ponds.length > 0}<span class="chip">{garden.data.terrain.ponds.length} pond{garden.data.terrain.ponds.length > 1 ? 's' : ''}</span>{/if}
+                {#if garden.data.terrain.bushes.length > 0}<span class="chip">{garden.data.terrain.bushes.length} bush{garden.data.terrain.bushes.length > 1 ? 'es' : ''}</span>{/if}
+                <span class="chip on">{layers.social ? 'Society' : layers.movement ? 'Movement' : 'Blinking only'}</span>
+              </span>
+            </div>
+            <div class="buttons">
+              <button class="primary" onclick={() => ui.session.openGarden(garden.id)}>Open</button>
+              <button class="danger" onclick={() => ui.session.requestDelete(garden.id)} aria-label="Delete {garden.name}">Delete</button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
 </main>
 
-{#if pendingDelete}
-  <ConfirmDialog
-    title="Tear out this page?"
-    body={`“${pendingDelete.title}” will be gone for good. This cannot be undone.`}
-    confirmLabel="Tear it out"
-    cancelLabel="Keep it"
-    danger
-    onconfirm={() => app.controller.confirmDeletePage()}
-    oncancel={() => app.controller.cancelDelete()}
-  />
-{/if}
-
 <style>
-  .library {
-    height: 100%;
-    overflow-y: auto;
-    padding: var(--space-6) var(--space-5);
-    max-width: 56rem;
-    margin: 0 auto;
-    color: var(--color-paper);
+  .library { height: 100%; overflow: auto; display: grid; align-content: start; justify-items: center; gap: 2.4rem; padding: 4rem 1.2rem 3rem; }
+  header { text-align: center; max-width: 34rem; display: grid; gap: 1rem; justify-items: center; }
+  h1 { font-size: clamp(2rem, 5vw, 3rem); }
+  .spark {
+    width: 14px; height: 14px; border-radius: 50%; background: var(--glow);
+    box-shadow: 0 0 18px 6px rgba(217, 255, 106, 0.55); animation: blink 3s ease-in-out infinite;
   }
-  header {
-    margin-bottom: var(--space-5);
-  }
-  h1 {
-    font-size: var(--text-xl);
-    letter-spacing: 0.02em;
-  }
-  header p {
-    margin: var(--space-2) 0 0;
-    color: var(--color-paper-edge);
-    font-style: italic;
-  }
-  .actions {
-    display: flex;
-    gap: var(--space-3);
-    margin-bottom: var(--space-5);
-  }
-  .empty {
-    color: var(--color-paper-edge);
-    font-style: italic;
-  }
-  .pages {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-    gap: var(--space-4);
-  }
-  .card {
-    display: flex;
-    flex-direction: column;
-    background: var(--color-paper);
-    color: var(--color-ink);
-    border: 1px solid var(--color-paper-edge);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-page);
-    overflow: hidden;
-  }
-  .open {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-5) var(--space-4);
-    text-align: left;
-    border: 0;
-    background: transparent;
-  }
-  .open:hover {
-    background: var(--color-paper-shade);
-  }
-  .title {
-    font-family: var(--font-display);
-    font-size: var(--text-lg);
-  }
-  .meta {
-    color: var(--color-ink-soft);
-    font-size: var(--text-sm);
-  }
-  .card-actions {
-    display: flex;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
-    border-top: 1px solid var(--color-paper-edge);
-    background: var(--color-paper-shade);
-  }
+  @keyframes blink { 0%, 70%, 100% { opacity: 0.25; } 80% { opacity: 1; } }
+  section { width: min(40rem, 100%); display: grid; gap: 0.9rem; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+  li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.9rem 1.1rem; }
+  .info { display: grid; gap: 0.3rem; min-width: 0; }
+  .chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .buttons { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  .empty { margin: 0; }
+  @media (prefers-reduced-motion: reduce) { .spark { animation: none; opacity: 1; } }
 </style>

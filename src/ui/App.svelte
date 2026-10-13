@@ -1,22 +1,33 @@
 <script lang="ts">
-  import type { Controller } from '@app';
-  import { provideApp } from './appContext.svelte';
+  import type { Ui } from './ui.svelte';
   import Library from './components/Library.svelte';
-  import Spread from './components/Spread.svelte';
-  import NoticeToast from './components/NoticeToast.svelte';
+  import GardenScreen from './components/GardenScreen.svelte';
+  import Dialog from './components/Dialog.svelte';
+  import Toast from './components/Toast.svelte';
 
-  let { controller }: { controller: Controller } = $props();
-
-  // svelte-ignore state_referenced_locally
-  const app = provideApp(controller);
-  const inLibrary = $derived(
-    app.state.snapshot.state === 'library' || app.state.snapshot.state === 'confirming-delete',
-  );
+  let { ui }: { ui: Ui } = $props();
+  const inLibrary = $derived(ui.state === 'library' || ui.state === 'confirming-delete');
 </script>
 
 {#if inLibrary}
-  <Library />
+  <Library {ui} />
 {:else}
-  <Spread />
+  <GardenScreen {ui} />
 {/if}
-<NoticeToast />
+
+{#if ui.state === 'confirming-delete' && ui.pendingDelete}
+  <Dialog
+    title="Delete this garden?"
+    confirmLabel="Delete garden"
+    danger
+    onconfirm={() => ui.session.confirmDelete()}
+    oncancel={() => ui.session.cancelDelete()}
+  >
+    <p>
+      <strong>{ui.pendingDelete.name}</strong> and its {ui.pendingDelete.data.fireflies.length} fireflies will be
+      removed from this browser. This cannot be undone.
+    </p>
+  </Dialog>
+{/if}
+
+<Toast {ui} />

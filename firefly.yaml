@@ -123,8 +123,8 @@ entities:
         world with emergent behavior, built in layers from blinking
         rhythms to movement to a fictional social system.
       rationale: >
-        Adapted from the Logic Spellbook v2 workflow model, keeping its
-        unsaved-work, multiple-saved-pages, and confirmed-deletion
+        Built on the MAGE application-workflow template, with
+        unsaved-work, multiple-saved-gardens, and confirmed-deletion
         guards.
 
   garden-library:
@@ -719,9 +719,23 @@ machines:
           barrier_present: 1
           sync_seen: 0
 
+      # A garden can hold several ponds, and the model does not count
+      # them. Erasing one leaves either some or none behind, so both
+      # outcomes are offered. Only an existing pond can be erased.
       - from: shaping
         to: shaping
-        label: erase-pond
+        label: erase-pond-leaving-some
+        requires:
+          barrier_present: {gt: 0}
+        effects:
+          dirty: 1
+          sync_seen: 0
+
+      - from: shaping
+        to: shaping
+        label: erase-last-pond
+        requires:
+          barrier_present: {gt: 0}
         effects:
           dirty: 1
           barrier_present: 0

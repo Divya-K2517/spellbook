@@ -1,6 +1,2 @@
-/**
- * The glue layer. May import from src/core; must never import from src/ui.
- */
-export * from './controller';
-export * from './state';
+export { AppSession, reopenLabel, type SessionOptions } from './session';
 export * from './storage';
